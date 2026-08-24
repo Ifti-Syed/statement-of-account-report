@@ -190,11 +190,7 @@
 		</tbody>
 	</table>
 
-	{% // ---- Project Wise Summary ----
-		// Re-sums the exact same rows/fields already rendered above (range1..range5,
-		// outstanding, future_amount, remaining_balance) - no new ageing logic, so this
-		// always reconciles with the main table's totals above.
-		var soa_rows = data.filter(function(d) { return d && d["voucher_no"] && !d["is_total_row"]; });
+	{% var soa_rows = data.filter(function(d) { return d && d["voucher_no"] && !d["is_total_row"]; });
 		var range_fields = ['range1', 'range2', 'range3', 'range4', 'range5'];
 		var bucket_labels = range_fields.map(range_col);
 		var project_groups = {};
