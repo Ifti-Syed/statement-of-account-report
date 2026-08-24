@@ -1,0 +1,19 @@
+Proprietary License - Internal Use Only
+
+Copyright (c) 2026, CVS (Central Ventilation Systems). All Rights Reserved.
+
+This software and associated documentation files are the proprietary and
+confidential property of CVS (Central Ventilation Systems). They have been
+developed solely for the internal business use of CVS and its authorized
+personnel.
+
+No part of this software may be copied, reproduced, distributed, published,
+sublicensed, sold, or otherwise made available to any third party, in whole
+or in part, in any form or by any means, without the prior written consent
+of CVS.
+
+This software is provided "AS IS", without warranty of any kind, express or
+implied, including but not limited to the warranties of merchantability,
+fitness for a particular purpose, and noninfringement.
+
+

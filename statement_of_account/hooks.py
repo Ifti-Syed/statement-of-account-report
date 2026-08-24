@@ -1,0 +1,6 @@
+app_name = "statement_of_account"
+app_title = "Statement of Account"
+app_publisher = "Iftikhar Hussain Syed"
+app_description = "Customer Statement of Account report (Accounts Receivable data with PDC/LC and Project Wise Summary)"
+app_email = "iftikhar.hussain@cvshvac.com"
+app_license = "Proprietary"
