@@ -106,10 +106,13 @@ class StatementOfAccount(ReceivablePayableReport):
 	def get_columns(self):
 		super().get_columns()
 
-		voucher_no_idx = next(i for i, c in enumerate(self.columns) if c["fieldname"] == "voucher_no")
-		self.columns.insert(
-			voucher_no_idx + 1,
-			dict(label=_("Project"), fieldname="project", fieldtype="Link", options="Project", width=140),
+		# Not needed on this report.
+		drop_fields = {"customer_primary_contact", "cost_center", "territory", "customer_group"}
+		self.columns = [c for c in self.columns if c["fieldname"] not in drop_fields]
+
+		# Appended at the end, after the PDC/LC and Remaining Balance columns.
+		self.columns.append(
+			dict(label=_("Project"), fieldname="project", fieldtype="Link", options="Project", width=140)
 		)
 
 		for column in self.columns:

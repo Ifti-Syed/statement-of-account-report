@@ -126,7 +126,6 @@
 				<th style="width: 9%">{%= __("Date") %}</th>
 				<th style="width: 4%">{%= __("Age (Days)") %}</th>
 				<th style="width: 13%">{%= __("Reference") %}</th>
-				<th style="width: 12%">{%= __("Project") %}</th>
 				{% if(filters.show_sales_person) { %}
 					<th style="width: 9%">{%= __("Sales Person") %}</th>
 				{% } %}
@@ -136,6 +135,7 @@
 				<th style="width: 9%">{%= __("PDC/LC Ref") %}</th>
 				<th style="width: 8%">{%= __("PDC/LC Amount") %}</th>
 				<th style="width: 8%">{%= __("Remaining Balance") %}</th>
+				<th style="width: 12%">{%= __("Project") %}</th>
 			</tr>
 		</thead>
 		<div class="show-filters">
@@ -151,7 +151,6 @@
 					<td>{%= frappe.datetime.str_to_user(data[i]["posting_date"]) %}</td>
 					<td style="text-align: right">{%= data[i]["age"] %}</td>
 					<td>{%= data[i]["voucher_no"] %}</td>
-					<td>{%= data[i]["project"] || "" %}</td>
 
 					{% if(filters.show_sales_person) { %}
 					<td>{%= data[i]["sales_person"] %}</td>
@@ -167,8 +166,8 @@
 					<td style="text-align: right">{%= data[i]["future_ref"] %}</td>
 					<td style="text-align: right">{%= format_currency(data[i]["future_amount"], data[i]["currency"]) %}</td>
 					<td style="text-align: right">{%= format_currency(data[i]["remaining_balance"], data[i]["currency"]) %}</td>
+					<td>{%= data[i]["project"] || "" %}</td>
 				{% } else { %}
-					<td></td>
 					<td></td>
 					<td></td>
 					<td></td>
@@ -184,6 +183,7 @@
 					<td style="text-align: right">{%= data[i]["future_ref"] %}</td>
 					<td style="text-align: right">{%= format_currency(data[i]["future_amount"], data[i]["currency"]) %}</td>
 					<td style="text-align: right">{%= format_currency(data[i]["remaining_balance"], data[i]["currency"]) %}</td>
+					<td></td>
 				{% } %}
 				</tr>
 			{% } %}
