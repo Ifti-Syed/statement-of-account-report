@@ -113,17 +113,17 @@
 				{% }); %}
 				<td class="text-right">{%= format_currency(sum_row(grand_pdc), soa_currency) %}</td>
 			</tr>
+			<tr>
+				<td>{%= __("Unallocated PDC/LC Amount") %}</td>
+				<td colspan="5"></td>
+				<td class="text-right">{%= format_currency(unallocated_pdc, soa_currency) %}</td>
+			</tr>
 			<tr class="cvs-footer">
 				<th class="text-left">{%= __("Remaining Balance") %}</th>
 				{% grand_remaining.forEach(function(v) { %}
 					<th class="text-right">{%= format_currency(v, soa_currency) %}</th>
 				{% }); %}
 				<th class="text-right">{%= format_currency(sum_row(grand_remaining), soa_currency) %}</th>
-			</tr>
-			<tr>
-				<td>{%= __("Unallocated PDC/LC Amount") %}</td>
-				<td colspan="5"></td>
-				<td class="text-right">{%= format_currency(unallocated_pdc, soa_currency) %}</td>
 			</tr>
 		</tbody>
 	</table>
