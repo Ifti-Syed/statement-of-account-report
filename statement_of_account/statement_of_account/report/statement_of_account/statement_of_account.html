@@ -40,86 +40,94 @@
 		</div>
 	</div>
 
-	{% var balance_row = data.slice(-1).pop();
-		var range_col = function(fieldname) {
+	{% var range_col = function(fieldname) {
 			var col = report.columns.filter((elem) => (elem.fieldname == fieldname))[0];
 			return col ? col.label : fieldname;
 		};
-		var range1 = range_col('range1');
-		var range2 = range_col('range2');
-		var range3 = range_col('range3');
-		var range4 = range_col('range4');
-		var range5 = range_col('range5');
-	%}
-	{% if(balance_row) { %}
-	<table class="table table-bordered table-condensed">
-		<caption class="text-right">(Amount in {%= data[0]["currency"] || "" %})</caption>
-			<colgroup>
-				<col style="width: 30mm;">
-				<col style="width: 18mm;">
-				<col style="width: 18mm;">
-				<col style="width: 18mm;">
-				<col style="width: 18mm;">
-				<col style="width: 18mm;">
-				<col style="width: 18mm;">
-			</colgroup>
+		var soa_rows = data.filter(function(d) { return d && d["voucher_no"] && !d["is_total_row"]; });
+		var range_fields = ['range1', 'range2', 'range3', 'range4', 'range5'];
+		var bucket_labels = range_fields.map(range_col);
+		var project_groups = {};
+		var project_order = [];
+		var grand_outstanding = [0, 0, 0, 0, 0];
+		var grand_pdc = [0, 0, 0, 0, 0];
+		var grand_remaining = [0, 0, 0, 0, 0];
+		var unallocated_pdc = soa_rows.length ? flt(soa_rows[0]["unallocated_pdc_amount"]) : 0;
+		var soa_currency = soa_rows.length ? soa_rows[0]["currency"] : (data[0] ? data[0]["currency"] : "");
 
+		soa_rows.forEach(function(row) {
+			var project = row["project"] || __("(Not Specified)");
+			if (!project_groups[project]) {
+				project_groups[project] = [0, 0, 0, 0, 0];
+				project_order.push(project);
+			}
+			range_fields.forEach(function(fieldname, idx) {
+				var val = flt(row[fieldname]);
+				if (val) {
+					project_groups[project][idx] += val;
+					grand_outstanding[idx] += val;
+					grand_pdc[idx] += flt(row["future_amount"]);
+					grand_remaining[idx] += flt(row["remaining_balance"]);
+				}
+			});
+		});
+
+		var sum_row = function(vals) {
+			return vals.reduce(function(a, b) { return a + b; }, 0);
+		};
+	%}
+
+	<table class="table table-bordered table-condensed">
 		<thead>
 			<tr>
-				<th>{%= __(" ") %}</th>
-				<th>{%= __(range1) %}</th>
-				<th>{%= __(range2) %}</th>
-				<th>{%= __(range3) %}</th>
-				<th>{%= __(range4) %}</th>
-				<th>{%= __(range5) %}</th>
-				<th>{%= __("Total") %}</th>
+				<th>{%= __("Project Wise Summary") %}</th>
+				{% bucket_labels.forEach(function(label) { %}
+					<th class="text-right">{%= __(label) %}</th>
+				{% }); %}
+				<th class="text-right">{%= __("Total") %}</th>
 			</tr>
 		</thead>
 		<tbody>
-			<tr>
-				<td>{%= __("Total Outstanding") %}</td>
-				<td class="text-right">
-					{%= format_currency(balance_row["range1"], data[data.length-1]["currency"]) %}
-				</td>
-				<td class="text-right">
-					{%= format_currency(balance_row["range2"], data[data.length-1]["currency"]) %}
-				</td>
-				<td class="text-right">
-					{%= format_currency(balance_row["range3"], data[data.length-1]["currency"]) %}
-				</td>
-				<td class="text-right">
-					{%= format_currency(balance_row["range4"], data[data.length-1]["currency"]) %}
-				</td>
-				<td class="text-right">
-					{%= format_currency(balance_row["range5"], data[data.length-1]["currency"]) %}
-				</td>
-				<td class="text-right">
-					{%= format_currency(flt(balance_row["outstanding"]), data[data.length-1]["currency"]) %}
-				</td>
+			{% project_order.forEach(function(project) {
+				var vals = project_groups[project];
+			%}
+				<tr>
+					<td>{%= project %}</td>
+					{% vals.forEach(function(v) { %}
+						<td class="text-right">{%= format_currency(v, soa_currency) %}</td>
+					{% }); %}
+					<td class="text-right"><b>{%= format_currency(sum_row(vals), soa_currency) %}</b></td>
+				</tr>
+			{% }); %}
+			<tr class="cvs-footer">
+				<th class="text-left">{%= __("Total Outstanding") %}</th>
+				{% grand_outstanding.forEach(function(v) { %}
+					<th class="text-right">{%= format_currency(v, soa_currency) %}</th>
+				{% }); %}
+				<th class="text-right">{%= format_currency(sum_row(grand_outstanding), soa_currency) %}</th>
 			</tr>
+			<tr>
 				<td>{%= __("PDC/LC in Hand") %}</td>
-				<td></td>
-				<td></td>
-				<td></td>
-				<td></td>
-				<td></td>
-				<td class="text-right">
-					{%= format_currency(flt(balance_row[("future_amount")]), data[data.length-1]["currency"]) %}
-				</td>
+				{% grand_pdc.forEach(function(v) { %}
+					<td class="text-right">{%= format_currency(v, soa_currency) %}</td>
+				{% }); %}
+				<td class="text-right">{%= format_currency(sum_row(grand_pdc), soa_currency) %}</td>
+			</tr>
 			<tr class="cvs-footer">
 				<th class="text-left">{%= __("Remaining Balance") %}</th>
-				<th></th>
-				<th></th>
-				<th></th>
-				<th></th>
-				<th></th>
-				<th class="text-right">
-					{%= format_currency(flt(balance_row["outstanding"] - balance_row[("future_amount")]), data[data.length-1]["currency"]) %}</th>
+				{% grand_remaining.forEach(function(v) { %}
+					<th class="text-right">{%= format_currency(v, soa_currency) %}</th>
+				{% }); %}
+				<th class="text-right">{%= format_currency(sum_row(grand_remaining), soa_currency) %}</th>
+			</tr>
+			<tr>
+				<td>{%= __("Unallocated PDC/LC Amount") %}</td>
+				<td colspan="5"></td>
+				<td class="text-right">{%= format_currency(unallocated_pdc, soa_currency) %}</td>
 			</tr>
 		</tbody>
-
 	</table>
-	{% } %}
+
 	<table class="table table-bordered">
 		<thead>
 			<tr>
@@ -187,91 +195,6 @@
 				{% } %}
 				</tr>
 			{% } %}
-		</tbody>
-	</table>
-
-	{% var soa_rows = data.filter(function(d) { return d && d["voucher_no"] && !d["is_total_row"]; });
-		var range_fields = ['range1', 'range2', 'range3', 'range4', 'range5'];
-		var bucket_labels = range_fields.map(range_col);
-		var project_groups = {};
-		var project_order = [];
-		var grand_outstanding = [0, 0, 0, 0, 0];
-		var grand_pdc = [0, 0, 0, 0, 0];
-		var grand_remaining = [0, 0, 0, 0, 0];
-		var unallocated_pdc = soa_rows.length ? flt(soa_rows[0]["unallocated_pdc_amount"]) : 0;
-		var soa_currency = soa_rows.length ? soa_rows[0]["currency"] : (data[0] ? data[0]["currency"] : "");
-
-		soa_rows.forEach(function(row) {
-			var project = row["project"] || __("(Not Specified)");
-			if (!project_groups[project]) {
-				project_groups[project] = [0, 0, 0, 0, 0];
-				project_order.push(project);
-			}
-			range_fields.forEach(function(fieldname, idx) {
-				var val = flt(row[fieldname]);
-				if (val) {
-					project_groups[project][idx] += val;
-					grand_outstanding[idx] += val;
-					grand_pdc[idx] += flt(row["future_amount"]);
-					grand_remaining[idx] += flt(row["remaining_balance"]);
-				}
-			});
-		});
-
-		var sum_row = function(vals) {
-			return vals.reduce(function(a, b) { return a + b; }, 0);
-		};
-	%}
-
-	<h4 class="text-center" style="margin-top: 6mm">{%= __("Project Wise Summary") %}</h4>
-	<table class="table table-bordered table-condensed">
-		<thead>
-			<tr>
-				<th>{%= __("Project Wise Summary") %}</th>
-				{% bucket_labels.forEach(function(label) { %}
-					<th class="text-right">{%= __(label) %}</th>
-				{% }); %}
-				<th class="text-right">{%= __("Total") %}</th>
-			</tr>
-		</thead>
-		<tbody>
-			{% project_order.forEach(function(project) {
-				var vals = project_groups[project];
-			%}
-				<tr>
-					<td>{%= project %}</td>
-					{% vals.forEach(function(v) { %}
-						<td class="text-right">{%= format_currency(v, soa_currency) %}</td>
-					{% }); %}
-					<td class="text-right"><b>{%= format_currency(sum_row(vals), soa_currency) %}</b></td>
-				</tr>
-			{% }); %}
-			<tr class="cvs-footer">
-				<th class="text-left">{%= __("Total Outstanding") %}</th>
-				{% grand_outstanding.forEach(function(v) { %}
-					<th class="text-right">{%= format_currency(v, soa_currency) %}</th>
-				{% }); %}
-				<th class="text-right">{%= format_currency(sum_row(grand_outstanding), soa_currency) %}</th>
-			</tr>
-			<tr>
-				<td>{%= __("PDC/LC in Hand") %}</td>
-				{% grand_pdc.forEach(function(v) { %}
-					<td class="text-right">{%= format_currency(v, soa_currency) %}</td>
-				{% }); %}
-				<td class="text-right">{%= format_currency(sum_row(grand_pdc), soa_currency) %}</td>
-			</tr>
-			<tr class="cvs-footer">
-				<th class="text-left">{%= __("Remaining Balance") %}</th>
-				{% grand_remaining.forEach(function(v) { %}
-					<th class="text-right">{%= format_currency(v, soa_currency) %}</th>
-				{% }); %}
-				<th class="text-right">{%= format_currency(sum_row(grand_remaining), soa_currency) %}</th>
-			</tr>
-			<tr>
-				<td>{%= __("Unallocated PDC/LC Amount") %}</td>
-				<td colspan="5"></td>
-				<td class="text-right">{%= format_currency(unallocated_pdc, soa_currency) %}</td>
-			</tr>
 		</tbody>
 	</table>
 
