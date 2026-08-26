@@ -45,8 +45,7 @@
 			return col ? col.label : fieldname;
 		};
 		var all_rows = data.filter(function(d) { return d && d["voucher_no"] && !d["is_total_row"]; });
-		var soa_rows = all_rows.filter(function(d) { return d["voucher_type"] !== "Payment Entry"; });
-		var pdc_entry_rows = all_rows.filter(function(d) { return d["voucher_type"] === "Payment Entry"; });
+		var pdc_entry_rows = all_rows.filter(function(d) { return d["is_unallocated_pdc"]; });
 		var range_fields = ['range1', 'range2', 'range3', 'range4', 'range5'];
 		var bucket_labels = range_fields.map(range_col);
 		var project_groups = {};
@@ -57,7 +56,7 @@
 		var unallocated_pdc = pdc_entry_rows.reduce(function(sum, row) { return sum + flt(row["future_amount"]); }, 0);
 		var soa_currency = all_rows.length ? all_rows[0]["currency"] : (data[0] ? data[0]["currency"] : "");
 
-		soa_rows.forEach(function(row) {
+		all_rows.forEach(function(row) {
 			var project = row["project"] || __("(Not Specified)");
 			if (!project_groups[project]) {
 				project_groups[project] = [0, 0, 0, 0, 0];

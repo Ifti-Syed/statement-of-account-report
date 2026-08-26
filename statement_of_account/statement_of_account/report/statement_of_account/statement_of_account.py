@@ -83,16 +83,21 @@ class StatementOfAccount(ReceivablePayableReport):
 		"Submitted for approval" workflow step, with money not yet allocated to any invoice.
 
 		These never show up anywhere in the base AR data at all - they're outside the
-		Payment Ledger Entry pipeline the rest of this report is built on (a Payment Entry
-		only feeds the ledger once it's actually accounting-submitted, docstatus=1). So each
-		one is appended here as its own row, using the Payment Entry's own `unallocated_amount`
-		field directly rather than re-deriving it, with the Payment Entry itself as the voucher.
+		Payment Ledger Entry pipeline the rest of this report is built on. Critically, a
+		Payment Entry only feeds that pipeline once it's actually accounting-submitted
+		(docstatus=1) - "pending approval" by definition means docstatus=0, still Draft.
+		Filtering on docstatus=1 (or <2, which also allows 1) here would double-count:
+		once via its real, correctly-aged row from the base pipeline, and again via this
+		flat, unaged row. So this is deliberately docstatus=0 only, with a same-name
+		safety check against rows the base pipeline already added, just in case a
+		submitted Payment Entry is ever left holding a stale "Submitted for approval"
+		workflow_state value.
 		"""
 		filters = {
 			"party_type": "Customer",
 			"workflow_state": "Submitted for approval",
 			"unallocated_amount": (">", 0),
-			"docstatus": ("<", 2),
+			"docstatus": 0,
 		}
 		if self.filters.get("company"):
 			filters["company"] = self.filters.company
@@ -105,7 +110,11 @@ class StatementOfAccount(ReceivablePayableReport):
 			fields=["name", "party", "posting_date", "reference_date", "reference_no", "unallocated_amount"],
 		)
 
+		existing_voucher_nos = {row.voucher_no for row in self.data if row.get("voucher_no")}
+
 		for pe in pdc_entries:
+			if pe.name in existing_voucher_nos:
+				continue
 			amount = flt(pe.unallocated_amount, self.currency_precision)
 			self.data.append(
 				frappe._dict(
@@ -129,6 +138,7 @@ class StatementOfAccount(ReceivablePayableReport):
 					future_amount=amount,
 					remaining_balance=0.0,
 					project="",
+					is_unallocated_pdc=1,
 				)
 			)
 
