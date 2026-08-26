@@ -70,38 +70,67 @@ class StatementOfAccount(ReceivablePayableReport):
 		for d in je_projects:
 			self.invoice_details.setdefault(d.parent, {})["project"] = d.project
 
-	def get_future_payments(self):
-		# Same two sources as the base report, but also totals PDC/LC entries that
-		# carry no invoice_no at all (advances not allocated to any voucher) - the
-		# base report silently drops these; this report surfaces them separately as
-		# "Unallocated PDC/LC Amount" in the Project Wise Summary instead of hiding them.
-		self.future_payments = frappe._dict()
-		self.unallocated_pdc_amount = 0.0
-
-		if not self.filters.show_future_payments:
-			return
-
-		future_payments = list(self.get_future_payments_from_payment_entry())
-		future_payments += list(self.get_future_payments_from_journal_entry())
-
-		future_amount_field = (
-			"future_amount" if self.filters.in_party_currency else "future_amount_in_base_currency"
-		)
-
-		for d in future_payments:
-			if not d.future_amount:
-				continue
-			if d.invoice_no:
-				self.future_payments.setdefault((d.invoice_no, d.party), []).append(d)
-			else:
-				self.unallocated_pdc_amount += flt(d.get(future_amount_field))
-
 	def append_row(self, row):
 		super().append_row(row)
 		row.project = row.get("project") or ""
-		# Stashed on every row (not just a totals row) so it survives into the
-		# print template's `data` array regardless of which rows are visible/sorted.
-		row.unallocated_pdc_amount = flt(self.unallocated_pdc_amount, self.currency_precision)
+
+	def get_data(self):
+		super().get_data()
+		self.append_unallocated_pdc_rows()
+
+	def append_unallocated_pdc_rows(self):
+		"""PDC cheques received and recorded (as a Payment Entry) but still sitting in the
+		"Submitted for approval" workflow step, with money not yet allocated to any invoice.
+
+		These never show up anywhere in the base AR data at all - they're outside the
+		Payment Ledger Entry pipeline the rest of this report is built on (a Payment Entry
+		only feeds the ledger once it's actually accounting-submitted, docstatus=1). So each
+		one is appended here as its own row, using the Payment Entry's own `unallocated_amount`
+		field directly rather than re-deriving it, with the Payment Entry itself as the voucher.
+		"""
+		filters = {
+			"party_type": "Customer",
+			"workflow_state": "Submitted for approval",
+			"unallocated_amount": (">", 0),
+			"docstatus": ("<", 2),
+		}
+		if self.filters.get("company"):
+			filters["company"] = self.filters.company
+		if self.filters.get("party"):
+			filters["party"] = ("in", self.filters.party)
+
+		pdc_entries = frappe.get_all(
+			"Payment Entry",
+			filters=filters,
+			fields=["name", "party", "posting_date", "reference_date", "reference_no", "unallocated_amount"],
+		)
+
+		for pe in pdc_entries:
+			amount = flt(pe.unallocated_amount, self.currency_precision)
+			self.data.append(
+				frappe._dict(
+					party_type="Customer",
+					party=pe.party,
+					voucher_type="Payment Entry",
+					voucher_no=pe.name,
+					posting_date=pe.reference_date or pe.posting_date,
+					currency=self.company_currency,
+					invoiced=0.0,
+					paid=0.0,
+					credit_note=0.0,
+					outstanding=0.0,
+					age="",
+					range1=0.0,
+					range2=0.0,
+					range3=0.0,
+					range4=0.0,
+					range5=0.0,
+					future_ref=pe.reference_no,
+					future_amount=amount,
+					remaining_balance=0.0,
+					project="",
+				)
+			)
 
 	def get_columns(self):
 		super().get_columns()

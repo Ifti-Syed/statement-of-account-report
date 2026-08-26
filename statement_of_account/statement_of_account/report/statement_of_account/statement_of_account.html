@@ -44,7 +44,9 @@
 			var col = report.columns.filter((elem) => (elem.fieldname == fieldname))[0];
 			return col ? col.label : fieldname;
 		};
-		var soa_rows = data.filter(function(d) { return d && d["voucher_no"] && !d["is_total_row"]; });
+		var all_rows = data.filter(function(d) { return d && d["voucher_no"] && !d["is_total_row"]; });
+		var soa_rows = all_rows.filter(function(d) { return d["voucher_type"] !== "Payment Entry"; });
+		var pdc_entry_rows = all_rows.filter(function(d) { return d["voucher_type"] === "Payment Entry"; });
 		var range_fields = ['range1', 'range2', 'range3', 'range4', 'range5'];
 		var bucket_labels = range_fields.map(range_col);
 		var project_groups = {};
@@ -52,8 +54,8 @@
 		var grand_outstanding = [0, 0, 0, 0, 0];
 		var grand_pdc = [0, 0, 0, 0, 0];
 		var grand_remaining = [0, 0, 0, 0, 0];
-		var unallocated_pdc = soa_rows.length ? flt(soa_rows[0]["unallocated_pdc_amount"]) : 0;
-		var soa_currency = soa_rows.length ? soa_rows[0]["currency"] : (data[0] ? data[0]["currency"] : "");
+		var unallocated_pdc = pdc_entry_rows.reduce(function(sum, row) { return sum + flt(row["future_amount"]); }, 0);
+		var soa_currency = all_rows.length ? all_rows[0]["currency"] : (data[0] ? data[0]["currency"] : "");
 
 		soa_rows.forEach(function(row) {
 			var project = row["project"] || __("(Not Specified)");
