@@ -63,7 +63,7 @@ frappe.query_reports["Statement of Account"] = {
 			label: __("Ageing Based On"),
 			fieldtype: "Select",
 			options: "Posting Date\nDue Date",
-			default: "Due Date",
+			default: "Posting Date",
 		},
 		{
 			fieldname: "calculate_ageing_with",
@@ -119,6 +119,11 @@ frappe.query_reports["Statement of Account"] = {
 		{
 			fieldname: "based_on_payment_terms",
 			label: __("Based On Payment Terms"),
+			fieldtype: "Check",
+		},
+		{
+			fieldname: "show_delivery_notes",
+			label: __("Show Linked Delivery Notes"),
 			fieldtype: "Check",
 		},
 		{

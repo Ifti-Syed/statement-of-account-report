@@ -107,7 +107,16 @@ class StatementOfAccount(ReceivablePayableReport):
 		pdc_entries = frappe.get_all(
 			"Payment Entry",
 			filters=filters,
-			fields=["name", "party", "posting_date", "reference_date", "reference_no", "unallocated_amount"],
+			fields=[
+				"name",
+				"party",
+				"posting_date",
+				"reference_date",
+				"reference_no",
+				"unallocated_amount",
+				"source_exchange_rate",
+				"paid_from_account_currency",
+			],
 		)
 
 		existing_voucher_nos = {row.voucher_no for row in self.data if row.get("voucher_no")}
@@ -115,7 +124,19 @@ class StatementOfAccount(ReceivablePayableReport):
 		for pe in pdc_entries:
 			if pe.name in existing_voucher_nos:
 				continue
-			amount = flt(pe.unallocated_amount, self.currency_precision)
+
+			# unallocated_amount is stored in the party/transaction currency, not company
+			# currency (see set_unallocated_amount() / set_difference_amount() in ERPNext's
+			# own Payment Entry controller) - convert it the same way ERPNext itself does,
+			# unless the report is explicitly asked to show party-currency amounts.
+			if self.filters.get("in_party_currency"):
+				amount = flt(pe.unallocated_amount, self.currency_precision)
+				row_currency = pe.paid_from_account_currency or self.company_currency
+			else:
+				amount = flt(
+					flt(pe.unallocated_amount) * flt(pe.source_exchange_rate or 1), self.currency_precision
+				)
+				row_currency = self.company_currency
 			self.data.append(
 				frappe._dict(
 					party_type="Customer",
@@ -123,7 +144,7 @@ class StatementOfAccount(ReceivablePayableReport):
 					voucher_type="Payment Entry",
 					voucher_no=pe.name,
 					posting_date=pe.reference_date or pe.posting_date,
-					currency=self.company_currency,
+					currency=row_currency,
 					invoiced=0.0,
 					paid=0.0,
 					credit_note=0.0,
