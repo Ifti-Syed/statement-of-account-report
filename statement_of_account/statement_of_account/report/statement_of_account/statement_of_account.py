@@ -157,7 +157,11 @@ class StatementOfAccount(ReceivablePayableReport):
 					range5=0.0,
 					future_ref=pe.reference_no,
 					future_amount=amount,
-					remaining_balance=0.0,
+					# outstanding is 0 for these rows, so this keeps the base report's own
+					# per-row identity (outstanding = future_amount + remaining_balance)
+					# holding true here too: 0 = amount + (-amount). That's what lets the
+					# Project Wise Summary fold this into Remaining Balance without a special case.
+					remaining_balance=-amount,
 					project="",
 					is_unallocated_pdc=1,
 				)

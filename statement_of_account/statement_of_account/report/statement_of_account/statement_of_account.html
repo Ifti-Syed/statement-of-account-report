@@ -124,7 +124,7 @@
 				{% grand_remaining.forEach(function(v) { %}
 					<th class="text-right">{%= format_currency(v, soa_currency) %}</th>
 				{% }); %}
-				<th class="text-right">{%= format_currency(sum_row(grand_remaining), soa_currency) %}</th>
+				<th class="text-right">{%= format_currency(sum_row(grand_remaining) - unallocated_pdc, soa_currency) %}</th>
 			</tr>
 		</tbody>
 	</table>
