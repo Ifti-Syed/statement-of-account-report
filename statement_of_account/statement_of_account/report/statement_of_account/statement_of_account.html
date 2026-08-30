@@ -135,9 +135,6 @@
 				<th style="width: 9%">{%= __("Date") %}</th>
 				<th style="width: 4%">{%= __("Age (Days)") %}</th>
 				<th style="width: 13%">{%= __("Reference") %}</th>
-				{% if(filters.show_sales_person) { %}
-					<th style="width: 9%">{%= __("Sales Person") %}</th>
-				{% } %}
 				<th style="width: 9%; text-align: right">{%= __("Invoiced Amount") %}</th>
 				<th style="width: 9%; text-align: right">{%= __("Outstanding Amount") %}</th>
 				<th style="width: 11%">{%= __("Customer LPO No.") %}</th>
@@ -161,10 +158,6 @@
 					<td style="text-align: right">{%= data[i]["age"] %}</td>
 					<td>{%= data[i]["voucher_no"] %}</td>
 
-					{% if(filters.show_sales_person) { %}
-					<td>{%= data[i]["sales_person"] %}</td>
-					{% } %}
-
 					<td style="text-align: right">
 						{%= format_currency(data[i]["invoiced"], data[i]["currency"]) %}</td>
 					<td style="text-align: right">
@@ -180,9 +173,6 @@
 					<td></td>
 					<td></td>
 					<td></td>
-					{% if(filters.show_sales_person) { %}
-					<td></td>
-					{% } %}
 					<td style="text-align: right"><b>{%= __("Total") %}</b></td>
 					<td style="text-align: right">
 						{%= format_currency(data[i]["outstanding"], data[i]["currency"]) %}</td>

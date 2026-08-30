@@ -17,23 +17,6 @@ frappe.query_reports["Statement of Account"] = {
 			default: frappe.datetime.get_today(),
 		},
 		{
-			fieldname: "finance_book",
-			label: __("Finance Book"),
-			fieldtype: "Link",
-			options: "Finance Book",
-		},
-		{
-			fieldname: "cost_center",
-			label: __("Cost Center"),
-			fieldtype: "MultiSelectList",
-			get_data: function (txt) {
-				return frappe.db.get_link_options("Cost Center", txt, {
-					company: frappe.query_report.get_filter_value("company"),
-				});
-			},
-			options: "Cost Center",
-		},
-		{
 			fieldname: "party",
 			label: __("Customer"),
 			fieldtype: "MultiSelectList",
@@ -100,18 +83,6 @@ frappe.query_reports["Statement of Account"] = {
 			options: "Sales Partner",
 		},
 		{
-			fieldname: "sales_person",
-			label: __("Sales Person"),
-			fieldtype: "Link",
-			options: "Sales Person",
-		},
-		{
-			fieldname: "territory",
-			label: __("Territory"),
-			fieldtype: "Link",
-			options: "Territory",
-		},
-		{
 			fieldname: "group_by_party",
 			label: __("Group By Customer"),
 			fieldtype: "Check",
@@ -127,28 +98,8 @@ frappe.query_reports["Statement of Account"] = {
 			fieldtype: "Check",
 		},
 		{
-			fieldname: "show_sales_person",
-			label: __("Show Sales Person"),
-			fieldtype: "Check",
-		},
-		{
-			fieldname: "show_remarks",
-			label: __("Show Remarks"),
-			fieldtype: "Check",
-		},
-		{
-			fieldname: "for_revaluation_journals",
-			label: __("Revaluation Journals"),
-			fieldtype: "Check",
-		},
-		{
 			fieldname: "ignore_accounts",
 			label: __("Group by Voucher"),
-			fieldtype: "Check",
-		},
-		{
-			fieldname: "in_party_currency",
-			label: __("In Party Currency"),
 			fieldtype: "Check",
 		},
 	],
@@ -162,4 +113,4 @@ frappe.query_reports["Statement of Account"] = {
 	},
 };
 
-erpnext.utils.add_dimensions("Statement of Account", 8);
+erpnext.utils.add_dimensions("Statement of Account", 5);

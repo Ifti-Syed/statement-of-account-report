@@ -115,7 +115,6 @@ class StatementOfAccount(ReceivablePayableReport):
 				"reference_no",
 				"unallocated_amount",
 				"source_exchange_rate",
-				"paid_from_account_currency",
 			],
 		)
 
@@ -128,15 +127,12 @@ class StatementOfAccount(ReceivablePayableReport):
 			# unallocated_amount is stored in the party/transaction currency, not company
 			# currency (see set_unallocated_amount() / set_difference_amount() in ERPNext's
 			# own Payment Entry controller) - convert it the same way ERPNext itself does,
-			# unless the report is explicitly asked to show party-currency amounts.
-			if self.filters.get("in_party_currency"):
-				amount = flt(pe.unallocated_amount, self.currency_precision)
-				row_currency = pe.paid_from_account_currency or self.company_currency
-			else:
-				amount = flt(
-					flt(pe.unallocated_amount) * flt(pe.source_exchange_rate or 1), self.currency_precision
-				)
-				row_currency = self.company_currency
+			# to keep it consistent with the rest of this report, which is always in
+			# company currency (there is no "In Party Currency" filter on this report).
+			amount = flt(
+				flt(pe.unallocated_amount) * flt(pe.source_exchange_rate or 1), self.currency_precision
+			)
+			row_currency = self.company_currency
 			self.data.append(
 				frappe._dict(
 					party_type="Customer",
