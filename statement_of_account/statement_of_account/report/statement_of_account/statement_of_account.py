@@ -1,6 +1,7 @@
 import frappe
 from frappe import _
-from frappe.utils import flt
+from frappe.query_builder.functions import IfNull, Sum
+from frappe.utils import flt, fmt_money, get_link_to_form
 
 from erpnext.accounts.report.accounts_receivable.accounts_receivable import ReceivablePayableReport
 
@@ -9,9 +10,18 @@ ARGS = {
 	"naming_by": ["Selling Settings", "cust_master_name"],
 }
 
+# Workflow states that represent a PDC record that isn't a real cheque actually held (e.g. a
+# scanned copy kept on file, or a bank guarantee cheque never meant to be presented) - excluded
+# from Unallocated PDC/LC the same way they're excluded from PDC/LC in Hand.
+EXCLUDED_PDC_WORKFLOW_STATES = ["Cheque copy", "Guarantee Cheque"]
+
 
 def execute(filters=None):
-	return StatementOfAccount(filters).run(ARGS)
+	report = StatementOfAccount(filters)
+	columns, data, message, chart, report_summary, skip_total_row = report.run(ARGS)
+	if report.pdc_warnings:
+		message = "<br>".join(report.pdc_warnings)
+	return columns, data, message, chart, report_summary, skip_total_row
 
 
 class StatementOfAccount(ReceivablePayableReport):
@@ -75,72 +85,111 @@ class StatementOfAccount(ReceivablePayableReport):
 		row.project = row.get("project") or ""
 
 	def get_data(self):
+		self.pdc_warnings = []
 		super().get_data()
 		self.append_unallocated_pdc_rows()
 
 	def append_unallocated_pdc_rows(self):
-		"""PDC cheques received and recorded (as a Payment Entry) but still sitting in the
-		"Submitted for approval" workflow step, with money not yet allocated to any invoice.
+		"""Unallocated PDC/LC = Payment Entry Paid Amount - Sales-Invoice-allocated Amount.
 
-		These never show up anywhere in the base AR data at all - they're outside the
-		Payment Ledger Entry pipeline the rest of this report is built on. Critically, a
-		Payment Entry only feeds that pipeline once it's actually accounting-submitted
-		(docstatus=1) - "pending approval" by definition means docstatus=0, still Draft.
-		Filtering on docstatus=1 (or <2, which also allows 1) here would double-count:
-		once via its real, correctly-aged row from the base pipeline, and again via this
-		flat, unaged row. So this is deliberately docstatus=0 only, with a same-name
-		safety check against rows the base pipeline already added, just in case a
-		submitted Payment Entry is ever left holding a stale "Submitted for approval"
-		workflow_state value.
+		Deliberately NOT Payment Entry.unallocated_amount - that field also nets out any
+		allocation against a Sales Order, which this report must not do (an SO allocation
+		doesn't reduce what's still unapplied *against an invoice*).
+
+		Same business conditions as the base report's own PDC/LC in Hand query
+		(get_future_payments_from_payment_entry): Customer, not cancelled, posting_date
+		after the report date. Additionally excludes the two workflow states that don't
+		represent a real cheque in hand.
+
+		Avoiding double counting without losing Sales-Order-allocated money: a submitted
+		Payment Entry that still has a leftover balance already appears in the base AR
+		pipeline as its own standalone row (voucher_type=Payment Entry, voucher_no=this
+		PE's name), with that leftover as its `outstanding`. That row only ever reflects
+		money the Payment Ledger actually recognizes as unapplied - a Sales Order
+		allocation isn't a voucher the AR ledger tracks, so it's invisible there even
+		though it's still not applied to any invoice. So rather than skip the whole
+		Payment Entry whenever it already has a row (which would silently drop that SO
+		portion), this looks up whatever the base pipeline already shows for this exact
+		Payment Entry and only adds the difference between that and this method's own
+		Paid Amount - Sales Invoice Allocated figure. When there's no existing row (the
+		common "pending approval" case), the difference is simply the full amount.
 		"""
-		filters = {
-			"party_type": "Customer",
-			"workflow_state": "Submitted for approval",
-			"unallocated_amount": (">", 0),
-			"docstatus": 0,
-		}
-		if self.filters.get("company"):
-			filters["company"] = self.filters.company
-		if self.filters.get("party"):
-			filters["party"] = ("in", self.filters.party)
+		pe = frappe.qb.DocType("Payment Entry")
+		per = frappe.qb.DocType("Payment Entry Reference")
 
-		pdc_entries = frappe.get_all(
-			"Payment Entry",
-			filters=filters,
-			fields=[
-				"name",
-				"party",
-				"posting_date",
-				"reference_date",
-				"reference_no",
-				"unallocated_amount",
-				"source_exchange_rate",
-			],
+		query = (
+			frappe.qb.from_(pe)
+			.left_join(per)
+			.on((per.parent == pe.name) & (per.reference_doctype == "Sales Invoice"))
+			.select(
+				pe.name,
+				pe.party,
+				pe.posting_date,
+				pe.reference_date,
+				pe.reference_no,
+				pe.base_paid_amount,
+				pe.source_exchange_rate,
+				IfNull(Sum(per.allocated_amount), 0).as_("si_allocated_amount"),
+			)
+			.where(
+				(pe.party_type == "Customer")
+				& (pe.docstatus < 2)
+				& (pe.posting_date > self.filters.report_date)
+				& (IfNull(pe.workflow_state, "").notin(EXCLUDED_PDC_WORKFLOW_STATES))
+			)
+			.groupby(pe.name)
 		)
+		if self.filters.get("company"):
+			query = query.where(pe.company == self.filters.company)
+		if self.filters.get("party"):
+			query = query.where(pe.party.isin(self.filters.party))
 
-		existing_voucher_nos = {row.voucher_no for row in self.data if row.get("voucher_no")}
+		pdc_entries = query.run(as_dict=True)
 
-		for pe in pdc_entries:
-			if pe.name in existing_voucher_nos:
+		existing_by_voucher_no = {row.voucher_no: row for row in self.data if row.get("voucher_no")}
+
+		for entry in pdc_entries:
+			exchange_rate = flt(entry.source_exchange_rate) or 1.0
+			si_allocated_base = flt(entry.si_allocated_amount) * exchange_rate
+			unallocated = flt(flt(entry.base_paid_amount) - si_allocated_base, self.currency_precision)
+
+			if unallocated < 0:
+				# Sales Invoice allocation exceeds what was actually paid - this is bad
+				# data on the Payment Entry itself. Never show a negative PDC/LC figure;
+				# flag it instead of silently absorbing the discrepancy.
+				self.pdc_warnings.append(
+					_(
+						"Payment Entry {0}: Sales Invoice allocated amount ({1}) is greater "
+						"than its Paid Amount ({2}). Excluded from Unallocated PDC/LC Amount - "
+						"please correct this Payment Entry."
+					).format(
+						get_link_to_form("Payment Entry", entry.name),
+						fmt_money(si_allocated_base, currency=self.company_currency),
+						fmt_money(entry.base_paid_amount, currency=self.company_currency),
+					)
+				)
 				continue
 
-			# unallocated_amount is stored in the party/transaction currency, not company
-			# currency (see set_unallocated_amount() / set_difference_amount() in ERPNext's
-			# own Payment Entry controller) - convert it the same way ERPNext itself does,
-			# to keep it consistent with the rest of this report, which is always in
-			# company currency (there is no "In Party Currency" filter on this report).
-			amount = flt(
-				flt(pe.unallocated_amount) * flt(pe.source_exchange_rate or 1), self.currency_precision
-			)
-			row_currency = self.company_currency
+			# Whatever the base AR pipeline already shows for this exact Payment Entry
+			# (its own standalone row's outstanding, if one exists) has already been
+			# counted once, in the main table's Total Outstanding. Only the remainder -
+			# money this method's own formula finds but the base pipeline doesn't show
+			# anywhere (Sales-Order-allocated amounts, being the main case) - is new.
+			existing_row = existing_by_voucher_no.get(entry.name)
+			already_represented = abs(flt(existing_row.get("outstanding"))) if existing_row else 0.0
+			missing = flt(unallocated - already_represented, self.currency_precision)
+
+			if missing <= 0:
+				continue
+
 			self.data.append(
 				frappe._dict(
 					party_type="Customer",
-					party=pe.party,
+					party=entry.party,
 					voucher_type="Payment Entry",
-					voucher_no=pe.name,
-					posting_date=pe.reference_date or pe.posting_date,
-					currency=row_currency,
+					voucher_no=entry.name,
+					posting_date=entry.reference_date or entry.posting_date,
+					currency=self.company_currency,
 					invoiced=0.0,
 					paid=0.0,
 					credit_note=0.0,
@@ -151,13 +200,14 @@ class StatementOfAccount(ReceivablePayableReport):
 					range3=0.0,
 					range4=0.0,
 					range5=0.0,
-					future_ref=pe.reference_no,
-					future_amount=amount,
+					future_ref=entry.reference_no,
+					future_amount=missing,
 					# outstanding is 0 for these rows, so this keeps the base report's own
 					# per-row identity (outstanding = future_amount + remaining_balance)
-					# holding true here too: 0 = amount + (-amount). That's what lets the
-					# Project Wise Summary fold this into Remaining Balance without a special case.
-					remaining_balance=-amount,
+					# holding true here too: 0 = missing + (-missing). That's what lets the
+					# Project Wise Summary fold this into Remaining Balance without a
+					# special case.
+					remaining_balance=-missing,
 					project="",
 					is_unallocated_pdc=1,
 				)
@@ -170,10 +220,11 @@ class StatementOfAccount(ReceivablePayableReport):
 		drop_fields = {"customer_primary_contact", "cost_center", "territory", "customer_group"}
 		self.columns = [c for c in self.columns if c["fieldname"] not in drop_fields]
 
-		# Appended at the end, after the PDC/LC and Remaining Balance columns.
-		self.columns.append(
-			dict(label=_("Project"), fieldname="project", fieldtype="Link", options="Project", width=140)
+		project_column = dict(
+			label=_("Project"), fieldname="project", fieldtype="Link", options="Project", width=140
 		)
+		posting_date_idx = next(i for i, c in enumerate(self.columns) if c["fieldname"] == "posting_date")
+		self.columns.insert(posting_date_idx + 1, project_column)
 
 		for column in self.columns:
 			if column["fieldname"] == "future_ref":

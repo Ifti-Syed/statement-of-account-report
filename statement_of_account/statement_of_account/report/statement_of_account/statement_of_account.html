@@ -3,15 +3,34 @@
 		padding: 4mm;
 		font-size: 8.0pt !important;
 	}
+	.print-format table {
+		width: 100%;
+		table-layout: fixed;
+	}
+	.print-format th {
+		text-align: center;
+		word-wrap: break-word;
+		overflow-wrap: break-word;
+	}
 	.print-format td {
-		vertical-align:middle !important;
+		vertical-align: middle !important;
+		word-wrap: break-word;
+		overflow-wrap: break-word;
 	}
 	.cvs-footer, .cvs-footer th {
 		background-color: #f4f5f6;
 	}
 	</style>
 
-	<h2 class="text-center" style="margin-top:0">{%= __(report.report_name) %}</h2>
+	<div class="clearfix">
+		<h2 class="pull-left" style="margin: 0;">{%= __(report.report_name) %}</h2>
+		<h5 class="pull-right" style="margin: 0;">
+			{%= __("As of") %}
+			{%= frappe.datetime.str_to_user(filters.report_date) %}
+		</h5>
+	</div>
+	<div style="clear: both;"></div>
+
 	<h4 class="text-center">
 		{% if (filters.party) { %}
 			{%= __(filters.party) %}
@@ -22,10 +41,6 @@
 			{%= __("Tax Id: ")%}	{%= filters.tax_id %}
 			{% } %}
 	</h6>
-	<h5 class="text-center">
-		{%= __("As of") %}
-		{%= frappe.datetime.str_to_user(filters.report_date) %}
-	</h5>
 
 	<div class="clearfix">
 		<div class="pull-left">
@@ -109,9 +124,7 @@
 			</tr>
 			<tr>
 				<td>{%= __("PDC/LC in Hand") %}</td>
-				{% grand_pdc.forEach(function(v) { %}
-					<td class="text-right">{%= format_currency(v, soa_currency) %}</td>
-				{% }); %}
+				<td colspan="5"></td>
 				<td class="text-right">{%= format_currency(sum_row(grand_pdc), soa_currency) %}</td>
 			</tr>
 			<tr>
@@ -130,18 +143,30 @@
 	</table>
 
 	<table class="table table-bordered">
+		<colgroup>
+			<col style="width: 13%;">
+			<col style="width: 12%;">
+			<col style="width: 4%;">
+			<col style="width: 12%;">
+			<col style="width: 9%;">
+			<col style="width: 9%;">
+			<col style="width: 10%;">
+			<col style="width: 8%;">
+			<col style="width: 8%;">
+			<col style="width: 10%;">
+		</colgroup>
 		<thead>
 			<tr>
-				<th style="width: 9%">{%= __("Date") %}</th>
-				<th style="width: 4%">{%= __("Age (Days)") %}</th>
-				<th style="width: 13%">{%= __("Reference") %}</th>
-				<th style="width: 9%; text-align: right">{%= __("Invoiced Amount") %}</th>
-				<th style="width: 9%; text-align: right">{%= __("Outstanding Amount") %}</th>
-				<th style="width: 11%">{%= __("Customer LPO No.") %}</th>
-				<th style="width: 9%">{%= __("PDC/LC Ref") %}</th>
-				<th style="width: 8%">{%= __("PDC/LC Amount") %}</th>
-				<th style="width: 8%">{%= __("Remaining Balance") %}</th>
-				<th style="width: 12%">{%= __("Project") %}</th>
+				<th>{%= __("Date") %}</th>
+				<th>{%= __("Project") %}</th>
+				<th>{%= __("Age (Days)") %}</th>
+				<th>{%= __("Reference") %}</th>
+				<th>{%= __("Invoiced Amount") %}</th>
+				<th>{%= __("Outstanding Amount") %}</th>
+				<th>{%= __("Customer LPO No.") %}</th>
+				<th>{%= __("PDC/LC Ref") %}</th>
+				<th>{%= __("PDC/LC Amount") %}</th>
+				<th>{%= __("Remaining Balance") %}</th>
 			</tr>
 		</thead>
 		<div class="show-filters">
@@ -155,6 +180,7 @@
 				<tr>
 				{% if(data[i]["party"]) { %}
 					<td>{%= frappe.datetime.str_to_user(data[i]["posting_date"]) %}</td>
+					<td>{%= data[i]["project"] || "" %}</td>
 					<td style="text-align: right">{%= data[i]["age"] %}</td>
 					<td>{%= data[i]["voucher_no"] %}</td>
 
@@ -168,8 +194,8 @@
 					<td style="text-align: right">{%= data[i]["future_ref"] %}</td>
 					<td style="text-align: right">{%= format_currency(data[i]["future_amount"], data[i]["currency"]) %}</td>
 					<td style="text-align: right">{%= format_currency(data[i]["remaining_balance"], data[i]["currency"]) %}</td>
-					<td>{%= data[i]["project"] || "" %}</td>
 				{% } else { %}
+					<td></td>
 					<td></td>
 					<td></td>
 					<td></td>
@@ -182,7 +208,6 @@
 					<td style="text-align: right">{%= data[i]["future_ref"] %}</td>
 					<td style="text-align: right">{%= format_currency(data[i]["future_amount"], data[i]["currency"]) %}</td>
 					<td style="text-align: right">{%= format_currency(data[i]["remaining_balance"], data[i]["currency"]) %}</td>
-					<td></td>
 				{% } %}
 				</tr>
 			{% } %}
