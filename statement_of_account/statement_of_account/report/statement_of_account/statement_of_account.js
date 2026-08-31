@@ -114,3 +114,55 @@ frappe.query_reports["Statement of Account"] = {
 };
 
 erpnext.utils.add_dimensions("Statement of Account", 5);
+
+// The Print/PDF menu's "Print Settings" dialog (frappe.ui.get_print_settings) is shared by
+// every report - there's no per-report flag to trim its fields. This wraps it so that only
+// when Statement of Account is the active report, the dialog is reduced to just Orientation,
+// with the letterhead applied automatically (using this report's own Company filter, not the
+// user's global default company) instead of asking. Every other report gets the untouched
+// original dialog, unaffected.
+(function () {
+	if (frappe.ui.__statement_of_account_print_settings_patched) return;
+	frappe.ui.__statement_of_account_print_settings_patched = true;
+
+	const original_get_print_settings = frappe.ui.get_print_settings;
+
+	frappe.ui.get_print_settings = function (pdf, callback, letter_head, pick_columns, has_filters) {
+		if (!frappe.query_report || frappe.query_report.report_name !== "Statement of Account") {
+			return original_get_print_settings.apply(this, arguments);
+		}
+
+		const print_settings = locals[":Print Settings"]["Print Settings"];
+		const company = frappe.query_report.get_filter_value("company");
+		let default_letter_head = letter_head || "";
+		if (!default_letter_head && company && locals[":Company"] && locals[":Company"][company]) {
+			default_letter_head = locals[":Company"][company]["default_letter_head"] || "";
+		}
+
+		return frappe.prompt(
+			[
+				{
+					fieldtype: "Select",
+					fieldname: "orientation",
+					label: __("Orientation"),
+					options: [
+						{ value: "Landscape", label: __("Landscape") },
+						{ value: "Portrait", label: __("Portrait") },
+					],
+					default: "Landscape",
+				},
+			],
+			function (dialog_data) {
+				let data = $.extend(print_settings, dialog_data, {
+					with_letter_head: 1,
+					letter_head: default_letter_head,
+				});
+				data.letter_head = data.letter_head
+					? frappe.boot.letter_heads[data.letter_head]
+					: null;
+				callback(data);
+			},
+			__("Print Settings")
+		);
+	};
+})();
