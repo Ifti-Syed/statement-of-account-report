@@ -38,6 +38,9 @@ class StatementOfAccount(ReceivablePayableReport):
 		# PDC/LC allocation is core to this report, always compute it - the
 		# corresponding filter is not exposed in the UI (see statement_of_account.js).
 		self.filters.show_future_payments = 1
+		# "Calculate Ageing With" is not exposed as a filter on this report - ageing is
+		# always calculated against today's date.
+		self.filters.calculate_ageing_with = "Today Date"
 		super().set_defaults()
 
 	def get_invoice_details(self):
@@ -156,17 +159,24 @@ class StatementOfAccount(ReceivablePayableReport):
 			if unallocated < 0:
 				# Sales Invoice allocation exceeds what was actually paid - this is bad
 				# data on the Payment Entry itself. Never show a negative PDC/LC figure;
-				# flag it instead of silently absorbing the discrepancy.
+				# flag it instead of silently absorbing the discrepancy. Note this only
+				# skips this entry's contribution to the *Unallocated* PDC/LC figure -
+				# its Sales-Invoice-allocated amount is unaffected and still shows
+				# normally in the PDC/LC Amount column against that invoice, via the
+				# regular Accounts Receivable logic this report doesn't touch.
 				self.pdc_warnings.append(
-					_(
-						"Payment Entry {0}: Sales Invoice allocated amount ({1}) is greater "
-						"than its Paid Amount ({2}). Excluded from Unallocated PDC/LC Amount - "
-						"please correct this Payment Entry."
+					'<span style="color:red;font-weight:bold;">'
+					+ _(
+						"Warning: Payment Entry {0} (Customer: {1}) has a Sales Invoice "
+						"allocated amount ({2}) greater than its Paid Amount ({3}). This is "
+						"invalid data on the Payment Entry - please correct it. "
 					).format(
 						get_link_to_form("Payment Entry", entry.name),
+						entry.party,
 						fmt_money(si_allocated_base, currency=self.company_currency),
 						fmt_money(entry.base_paid_amount, currency=self.company_currency),
 					)
+					+ "</span>"
 				)
 				continue
 
@@ -217,7 +227,13 @@ class StatementOfAccount(ReceivablePayableReport):
 		super().get_columns()
 
 		# Not needed on this report.
-		drop_fields = {"customer_primary_contact", "cost_center", "territory", "customer_group"}
+		drop_fields = {
+			"customer_primary_contact",
+			"cost_center",
+			"territory",
+			"customer_group",
+			"party_account",
+		}
 		self.columns = [c for c in self.columns if c["fieldname"] not in drop_fields]
 
 		project_column = dict(

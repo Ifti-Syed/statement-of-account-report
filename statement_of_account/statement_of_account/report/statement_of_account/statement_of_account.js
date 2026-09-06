@@ -26,34 +26,11 @@ frappe.query_reports["Statement of Account"] = {
 			},
 		},
 		{
-			fieldname: "party_account",
-			label: __("Receivable Account"),
-			fieldtype: "Link",
-			options: "Account",
-			get_query: () => {
-				var company = frappe.query_report.get_filter_value("company");
-				return {
-					filters: {
-						company: company,
-						account_type: "Receivable",
-						is_group: 0,
-					},
-				};
-			},
-		},
-		{
 			fieldname: "ageing_based_on",
 			label: __("Ageing Based On"),
 			fieldtype: "Select",
 			options: "Posting Date\nDue Date",
 			default: "Posting Date",
-		},
-		{
-			fieldname: "calculate_ageing_with",
-			label: __("Calculate Ageing With"),
-			fieldtype: "Select",
-			options: "Report Date\nToday Date",
-			default: "Report Date",
 		},
 		{
 			fieldname: "range",
@@ -71,16 +48,11 @@ frappe.query_reports["Statement of Account"] = {
 			},
 		},
 		{
-			fieldname: "payment_terms_template",
-			label: __("Payment Terms Template"),
-			fieldtype: "Link",
-			options: "Payment Terms Template",
-		},
-		{
-			fieldname: "sales_partner",
-			label: __("Sales Partner"),
-			fieldtype: "Link",
-			options: "Sales Partner",
+			fieldname: "report_type",
+			label: __("Report Type"),
+			fieldtype: "Select",
+			options: "Projectwise\nWithout Project",
+			default: "Projectwise",
 		},
 		{
 			fieldname: "group_by_party",

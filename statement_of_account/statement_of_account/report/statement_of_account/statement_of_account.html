@@ -22,14 +22,11 @@
 	}
 	</style>
 
-	<div class="clearfix">
-		<h2 class="pull-left" style="margin: 0;">{%= __(report.report_name) %}</h2>
-		<h5 class="pull-right" style="margin: 0;">
-			{%= __("As of") %}
-			{%= frappe.datetime.str_to_user(filters.report_date) %}
-		</h5>
-	</div>
-	<div style="clear: both;"></div>
+	<h2 class="text-center" style="margin: 0; font-weight: bold;">
+		{%= __(report.report_name) %}
+		{%= __("as of") %}
+		{%= frappe.datetime.str_to_user(filters.report_date) %}
+	</h2>
 
 	<h4 class="text-center">
 		{% if (filters.party) { %}
@@ -55,7 +52,8 @@
 		</div>
 	</div>
 
-	{% var range_col = function(fieldname) {
+	{% var is_without_project = filters.report_type === "Without Project";
+		var range_col = function(fieldname) {
 			var col = report.columns.filter((elem) => (elem.fieldname == fieldname))[0];
 			return col ? col.label : fieldname;
 		};
@@ -104,17 +102,19 @@
 			</tr>
 		</thead>
 		<tbody>
-			{% project_order.forEach(function(project) {
-				var vals = project_groups[project];
-			%}
-				<tr>
-					<td>{%= project %}</td>
-					{% vals.forEach(function(v) { %}
-						<td class="text-right">{%= format_currency(v, soa_currency) %}</td>
-					{% }); %}
-					<td class="text-right"><b>{%= format_currency(sum_row(vals), soa_currency) %}</b></td>
-				</tr>
-			{% }); %}
+			{% if(!is_without_project) { %}
+				{% project_order.forEach(function(project) {
+					var vals = project_groups[project];
+				%}
+					<tr>
+						<td>{%= project %}</td>
+						{% vals.forEach(function(v) { %}
+							<td class="text-right">{%= format_currency(v, soa_currency) %}</td>
+						{% }); %}
+						<td class="text-right"><b>{%= format_currency(sum_row(vals), soa_currency) %}</b></td>
+					</tr>
+				{% }); %}
+			{% } %}
 			<tr class="cvs-footer">
 				<th class="text-left">{%= __("Total Outstanding") %}</th>
 				{% grand_outstanding.forEach(function(v) { %}
@@ -125,12 +125,7 @@
 			<tr>
 				<td>{%= __("PDC/LC in Hand") %}</td>
 				<td colspan="5"></td>
-				<td class="text-right">{%= format_currency(sum_row(grand_pdc), soa_currency) %}</td>
-			</tr>
-			<tr>
-				<td>{%= __("Unallocated PDC/LC Amount") %}</td>
-				<td colspan="5"></td>
-				<td class="text-right">{%= format_currency(unallocated_pdc, soa_currency) %}</td>
+				<td class="text-right">{%= format_currency(sum_row(grand_pdc) + unallocated_pdc, soa_currency) %}</td>
 			</tr>
 			<tr class="cvs-footer">
 				<th class="text-left">{%= __("Remaining Balance") %}</th>
@@ -145,7 +140,9 @@
 	<table class="table table-bordered">
 		<colgroup>
 			<col style="width: 13%;">
-			<col style="width: 12%;">
+			{% if(!is_without_project) { %}
+				<col style="width: 12%;">
+			{% } %}
 			<col style="width: 4%;">
 			<col style="width: 12%;">
 			<col style="width: 9%;">
@@ -158,7 +155,9 @@
 		<thead>
 			<tr>
 				<th>{%= __("Date") %}</th>
-				<th>{%= __("Project") %}</th>
+				{% if(!is_without_project) { %}
+					<th>{%= __("Project") %}</th>
+				{% } %}
 				<th>{%= __("Age (Days)") %}</th>
 				<th>{%= __("Reference") %}</th>
 				<th>{%= __("Invoiced Amount") %}</th>
@@ -180,7 +179,9 @@
 				<tr>
 				{% if(data[i]["party"]) { %}
 					<td>{%= frappe.datetime.str_to_user(data[i]["posting_date"]) %}</td>
-					<td>{%= data[i]["project"] || "" %}</td>
+					{% if(!is_without_project) { %}
+						<td>{%= data[i]["project"] || "" %}</td>
+					{% } %}
 					<td style="text-align: right">{%= data[i]["age"] %}</td>
 					<td>{%= data[i]["voucher_no"] %}</td>
 
@@ -196,7 +197,9 @@
 					<td style="text-align: right">{%= format_currency(data[i]["remaining_balance"], data[i]["currency"]) %}</td>
 				{% } else { %}
 					<td></td>
-					<td></td>
+					{% if(!is_without_project) { %}
+						<td></td>
+					{% } %}
 					<td></td>
 					<td></td>
 					<td style="text-align: right"><b>{%= __("Total") %}</b></td>
