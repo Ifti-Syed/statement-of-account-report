@@ -53,6 +53,7 @@
 	</div>
 
 	{% var is_without_project = filters.report_type === "Without Project";
+		var equal_col_width = is_without_project ? 12 : 10;
 		var range_col = function(fieldname) {
 			var col = report.columns.filter((elem) => (elem.fieldname == fieldname))[0];
 			return col ? col.label : fieldname;
@@ -139,18 +140,18 @@
 
 	<table class="table table-bordered">
 		<colgroup>
-			<col style="width: 13%;">
+			<col style="width: 10%;">
 			{% if(!is_without_project) { %}
 				<col style="width: 12%;">
 			{% } %}
 			<col style="width: 6%;">
-			<col style="width: 8%;">
-			<col style="width: 11%;">
-			<col style="width: 11%;">
-			<col style="width: 7%;">
-			<col style="width: 10%;">
-			<col style="width: 9%;">
-			<col style="width: 10%;">
+			<col style="width: {%= equal_col_width %}%;">
+			<col style="width: {%= equal_col_width %}%;">
+			<col style="width: {%= equal_col_width %}%;">
+			<col style="width: {%= equal_col_width %}%;">
+			<col style="width: 12%;">
+			<col style="width: {%= equal_col_width %}%;">
+			<col style="width: {%= equal_col_width %}%;">
 		</colgroup>
 		<thead>
 			<tr>
