@@ -90,12 +90,17 @@
 		var sum_row = function(vals) {
 			return vals.reduce(function(a, b) { return a + b; }, 0);
 		};
+		var fmt_acc = function(v, currency) {
+			v = flt(v);
+			var formatted = format_currency(Math.abs(v), currency);
+			return v < 0 ? "(" + formatted + ")" : formatted;
+		};
 	%}
 
 	<table class="table table-bordered table-condensed">
 		<thead>
 			<tr>
-				<th>{%= __("Project Wise Summary") %}</th>
+				<th></th>
 				{% bucket_labels.forEach(function(label) { %}
 					<th class="text-right">{%= __(label) %}</th>
 				{% }); %}
@@ -110,30 +115,40 @@
 					<tr>
 						<td>{%= project %}</td>
 						{% vals.forEach(function(v) { %}
-							<td class="text-right">{%= format_currency(v, soa_currency) %}</td>
+							<td class="text-right">{%= fmt_acc(v, soa_currency) %}</td>
 						{% }); %}
-						<td class="text-right"><b>{%= format_currency(sum_row(vals), soa_currency) %}</b></td>
+						<td class="text-right"><b>{%= fmt_acc(sum_row(vals), soa_currency) %}</b></td>
 					</tr>
 				{% }); %}
 			{% } %}
-			<tr class="cvs-footer">
-				<th class="text-left">{%= __("Total Outstanding") %}</th>
-				{% grand_outstanding.forEach(function(v) { %}
-					<th class="text-right">{%= format_currency(v, soa_currency) %}</th>
-				{% }); %}
-				<th class="text-right">{%= format_currency(sum_row(grand_outstanding), soa_currency) %}</th>
-			</tr>
+			{% if(is_without_project) { %}
+				<tr>
+					<td>{%= __("Total Outstanding") %}</td>
+					{% grand_outstanding.forEach(function(v) { %}
+						<td class="text-right">{%= fmt_acc(v, soa_currency) %}</td>
+					{% }); %}
+					<td class="text-right">{%= fmt_acc(sum_row(grand_outstanding), soa_currency) %}</td>
+				</tr>
+			{% } else { %}
+				<tr class="cvs-footer">
+					<th class="text-left">{%= __("Total Outstanding") %}</th>
+					{% grand_outstanding.forEach(function(v) { %}
+						<th class="text-right">{%= fmt_acc(v, soa_currency) %}</th>
+					{% }); %}
+					<th class="text-right">{%= fmt_acc(sum_row(grand_outstanding), soa_currency) %}</th>
+				</tr>
+			{% } %}
 			<tr>
 				<td>{%= __("PDC/LC in Hand") %}</td>
 				<td colspan="5"></td>
-				<td class="text-right">{%= format_currency(sum_row(grand_pdc) + unallocated_pdc, soa_currency) %}</td>
+				<td class="text-right">{%= fmt_acc(sum_row(grand_pdc) + unallocated_pdc, soa_currency) %}</td>
 			</tr>
 			<tr class="cvs-footer">
 				<th class="text-left">{%= __("Remaining Balance") %}</th>
 				{% grand_remaining.forEach(function(v) { %}
-					<th class="text-right">{%= format_currency(v, soa_currency) %}</th>
+					<th class="text-right">{%= fmt_acc(v, soa_currency) %}</th>
 				{% }); %}
-				<th class="text-right">{%= format_currency(sum_row(grand_remaining) - unallocated_pdc, soa_currency) %}</th>
+				<th class="text-right">{%= fmt_acc(sum_row(grand_remaining) - unallocated_pdc, soa_currency) %}</th>
 			</tr>
 		</tbody>
 	</table>
@@ -187,15 +202,15 @@
 					<td>{%= data[i]["voucher_no"] %}</td>
 
 					<td style="text-align: right">
-						{%= format_currency(data[i]["invoiced"], data[i]["currency"]) %}</td>
+						{%= fmt_acc(data[i]["invoiced"], data[i]["currency"]) %}</td>
 					<td style="text-align: right">
-						{%= format_currency(data[i]["outstanding"], data[i]["currency"]) %}</td>
+						{%= fmt_acc(data[i]["outstanding"], data[i]["currency"]) %}</td>
 
 					<td style="text-align: right">
 						{%= data[i]["po_no"] %}</td>
 					<td style="text-align: right">{%= data[i]["future_ref"] %}</td>
-					<td style="text-align: right">{%= format_currency(data[i]["future_amount"], data[i]["currency"]) %}</td>
-					<td style="text-align: right">{%= format_currency(data[i]["remaining_balance"], data[i]["currency"]) %}</td>
+					<td style="text-align: right">{%= fmt_acc(data[i]["future_amount"], data[i]["currency"]) %}</td>
+					<td style="text-align: right">{%= fmt_acc(data[i]["remaining_balance"], data[i]["currency"]) %}</td>
 				{% } else { %}
 					<td></td>
 					{% if(!is_without_project) { %}
@@ -205,13 +220,13 @@
 					<td></td>
 					<td style="text-align: right"><b>{%= __("Total") %}</b></td>
 					<td style="text-align: right">
-						{%= format_currency(data[i]["outstanding"], data[i]["currency"]) %}</td>
+						{%= fmt_acc(data[i]["outstanding"], data[i]["currency"]) %}</td>
 
 					<td style="text-align: right">
 						{%= data[i]["po_no"] %}</td>
 					<td style="text-align: right">{%= data[i]["future_ref"] %}</td>
-					<td style="text-align: right">{%= format_currency(data[i]["future_amount"], data[i]["currency"]) %}</td>
-					<td style="text-align: right">{%= format_currency(data[i]["remaining_balance"], data[i]["currency"]) %}</td>
+					<td style="text-align: right">{%= fmt_acc(data[i]["future_amount"], data[i]["currency"]) %}</td>
+					<td style="text-align: right">{%= fmt_acc(data[i]["remaining_balance"], data[i]["currency"]) %}</td>
 				{% } %}
 				</tr>
 			{% } %}
