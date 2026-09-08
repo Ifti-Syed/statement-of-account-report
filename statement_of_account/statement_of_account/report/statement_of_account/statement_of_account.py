@@ -236,12 +236,13 @@ class StatementOfAccount(ReceivablePayableReport):
 		}
 		self.columns = [c for c in self.columns if c["fieldname"] not in drop_fields]
 
-		project_column = dict(
-			label=_("Project"), fieldname="project", fieldtype="Link", options="Project", width=140
-		)
-		posting_date_idx = next(i for i, c in enumerate(self.columns) if c["fieldname"] == "posting_date")
-		self.columns.insert(posting_date_idx + 1, project_column)
-
+		# No column definition inserted for "project" here on purpose - the on-screen
+		# grid for this report already shows a Project column via a saved per-user
+		# customization on the Frappe Cloud site, and adding a second definition here
+		# produced a duplicate on screen. The underlying data (row.project, set by
+		# append_row()/set_project_details() below) is untouched and still drives the
+		# print template's Project column and the Project Wise Summary exactly as
+		# before - only this report's own on-screen column definition is removed.
 		for column in self.columns:
 			if column["fieldname"] == "future_ref":
 				column["label"] = _("PDC/LC Ref")
