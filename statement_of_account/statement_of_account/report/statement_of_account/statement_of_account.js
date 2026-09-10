@@ -138,3 +138,73 @@ erpnext.utils.add_dimensions("Statement of Account", 5);
 		);
 	};
 })();
+
+// PDF download filename: "SOA_<Customer>_<As of date>.pdf" instead of Frappe's default
+// "<report name>_<filter values>.pdf". Same scoped-override approach as above - only
+// intercepts for Statement of Account, every other report keeps the stock filename logic.
+(function () {
+	if (frappe.views.QueryReport.prototype.__statement_of_account_pdf_patched) return;
+	frappe.views.QueryReport.prototype.__statement_of_account_pdf_patched = true;
+
+	const original_pdf_report = frappe.views.QueryReport.prototype.pdf_report;
+
+	frappe.views.QueryReport.prototype.pdf_report = async function (print_settings) {
+		if (this.report_name !== "Statement of Account") {
+			return original_pdf_report.call(this, print_settings);
+		}
+
+		// Same body as the stock pdf_report() - this.report_name must stay untouched
+		// throughout, since the print content's own title/heading reads it too; only the
+		// final print_settings.report_name (the actual download filename) is computed
+		// differently, right at the end.
+		const base_url = frappe.urllib.get_base_url();
+		const print_css = frappe.boot.print_css;
+		const landscape = print_settings.orientation == "Landscape";
+
+		let custom_format = this.report_settings.html_format || null;
+		const columns = this.get_columns_for_print(print_settings, custom_format);
+		const data = this.get_data_for_print();
+		const applied_filters = this.get_filter_values();
+
+		if (print_settings.report) {
+			custom_format = await this.get_report_print_format(print_settings.report);
+		}
+
+		const filters_html = this.get_filters_html_for_print();
+		const template = print_settings.columns || !custom_format ? "print_grid" : custom_format;
+		const content = frappe.render_template(template, {
+			title: __(this.report_name),
+			subtitle: print_settings?.include_filters ? filters_html : null,
+			filters: applied_filters,
+			data: data,
+			original_data: this.data,
+			columns: columns,
+			report: this,
+		});
+
+		const html = frappe.render_template("print_template", {
+			title: __(this.report_name),
+			content: content,
+			base_url: base_url,
+			print_css: print_css,
+			print_settings: print_settings,
+			landscape: landscape,
+			columns: columns,
+			lang: frappe.boot.lang,
+			layout_direction: frappe.utils.is_rtl() ? "rtl" : "ltr",
+			can_use_smaller_font: this.report_doc.is_standard === "Yes" && custom_format ? 0 : 1,
+		});
+
+		const safe = (s) => String(s).replace(/[\\/:*?"<>|]/g, "-");
+		let customer_label = "All Customers";
+		if (applied_filters.party) {
+			customer_label = Array.isArray(applied_filters.party)
+				? applied_filters.party.join("-")
+				: applied_filters.party;
+		}
+		const date_label = applied_filters.report_date || frappe.datetime.get_today();
+		print_settings.report_name = `SOA_${safe(customer_label)}_${safe(date_label)}.pdf`;
+
+		frappe.render_pdf(html, print_settings);
+	};
+})();

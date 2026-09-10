@@ -7,18 +7,19 @@
 		width: 100%;
 		table-layout: fixed;
 	}
-	.print-format th {
+	.print-format thead th {
 		text-align: center;
 		word-wrap: break-word;
 		overflow-wrap: break-word;
 	}
-	.print-format td {
+	.print-format td, .print-format tbody th {
 		vertical-align: middle !important;
 		word-wrap: break-word;
 		overflow-wrap: break-word;
 	}
-	.cvs-footer, .cvs-footer th {
-		background-color: #f4f5f6;
+	.cvs-footer, .cvs-footer td, .cvs-footer th {
+		background-color: #f4f5f6 !important;
+		font-weight: bold;
 	}
 	</style>
 
@@ -98,6 +99,15 @@
 	%}
 
 	<table class="table table-bordered table-condensed">
+		<colgroup>
+			<col style="width: 24%;">
+			<col style="width: 12%;">
+			<col style="width: 12%;">
+			<col style="width: 12%;">
+			<col style="width: 12%;">
+			<col style="width: 12%;">
+			<col style="width: 16%;">
+		</colgroup>
 		<thead>
 			<tr>
 				<th></th>
@@ -192,8 +202,8 @@
 		</div>
 		<tbody>
 			{% for(var i=0, l=data.length; i<l; i++) { %}
-				<tr>
 				{% if(data[i]["party"]) { %}
+				<tr>
 					<td>{%= frappe.datetime.str_to_user(data[i]["posting_date"]) %}</td>
 					{% if(!is_without_project) { %}
 						<td>{%= data[i]["project"] || "" %}</td>
@@ -211,24 +221,26 @@
 					<td style="text-align: right">{%= data[i]["future_ref"] %}</td>
 					<td style="text-align: right">{%= fmt_acc(data[i]["future_amount"], data[i]["currency"]) %}</td>
 					<td style="text-align: right">{%= fmt_acc(data[i]["remaining_balance"], data[i]["currency"]) %}</td>
+				</tr>
 				{% } else { %}
+				<tr class="cvs-footer">
 					<td></td>
 					{% if(!is_without_project) { %}
 						<td></td>
 					{% } %}
 					<td></td>
-					<td></td>
 					<td style="text-align: right"><b>{%= __("Total") %}</b></td>
 					<td style="text-align: right">
-						{%= fmt_acc(data[i]["outstanding"], data[i]["currency"]) %}</td>
-
+						<b>{%= fmt_acc(data[i]["invoiced"], data[i]["currency"]) %}</b></td>
 					<td style="text-align: right">
-						{%= data[i]["po_no"] %}</td>
-					<td style="text-align: right">{%= data[i]["future_ref"] %}</td>
-					<td style="text-align: right">{%= fmt_acc(data[i]["future_amount"], data[i]["currency"]) %}</td>
-					<td style="text-align: right">{%= fmt_acc(data[i]["remaining_balance"], data[i]["currency"]) %}</td>
-				{% } %}
+						<b>{%= fmt_acc(data[i]["outstanding"], data[i]["currency"]) %}</b></td>
+
+					<td style="text-align: right"></td>
+					<td style="text-align: right"></td>
+					<td style="text-align: right"><b>{%= fmt_acc(data[i]["future_amount"], data[i]["currency"]) %}</b></td>
+					<td style="text-align: right"><b>{%= fmt_acc(data[i]["remaining_balance"], data[i]["currency"]) %}</b></td>
 				</tr>
+				{% } %}
 			{% } %}
 		</tbody>
 	</table>
