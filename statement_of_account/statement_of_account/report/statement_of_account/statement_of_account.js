@@ -129,8 +129,15 @@ erpnext.utils.add_dimensions("Statement of Account", 5);
 				let letter_head_name = letter_head || "";
 				if (!letter_head_name && company) {
 					try {
-						const r = await frappe.db.get_value("Company", company, "default_letter_head");
-						letter_head_name = (r && r.message && r.message.default_letter_head) || "";
+						const message = await new Promise((resolve) => {
+							frappe.db.get_value(
+								"Company",
+								company,
+								"default_letter_head",
+								(msg) => resolve(msg || {})
+							);
+						});
+						letter_head_name = message.default_letter_head || "";
 					} catch (e) {
 						letter_head_name = "";
 					}
@@ -146,6 +153,23 @@ erpnext.utils.add_dimensions("Statement of Account", 5);
 					} catch (e) {
 						letter_head_name = "";
 					}
+				}
+
+				if (letter_head_name && !frappe.boot.letter_heads[letter_head_name]) {
+					frappe.show_alert({
+						message: __("Letter Head {0} was found but has no content loaded for this session - it may need a page refresh.", [letter_head_name]),
+						indicator: "orange",
+					});
+				} else if (!letter_head_name) {
+					frappe.show_alert({
+						message: __("No Letter Head found for Company {0} and no Letter Head is marked as default - printing without one.", [company]),
+						indicator: "orange",
+					});
+				} else {
+					frappe.show_alert({
+						message: __("Using Letter Head: {0}", [letter_head_name]),
+						indicator: "green",
+					});
 				}
 
 				let data = $.extend(print_settings, dialog_data, {
