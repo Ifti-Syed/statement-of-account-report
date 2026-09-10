@@ -106,10 +106,6 @@ erpnext.utils.add_dimensions("Statement of Account", 5);
 
 		const print_settings = locals[":Print Settings"]["Print Settings"];
 		const company = frappe.query_report.get_filter_value("company");
-		let default_letter_head = letter_head || "";
-		if (!default_letter_head && company && locals[":Company"] && locals[":Company"][company]) {
-			default_letter_head = locals[":Company"][company]["default_letter_head"] || "";
-		}
 
 		return frappe.prompt(
 			[
@@ -124,10 +120,40 @@ erpnext.utils.add_dimensions("Statement of Account", 5);
 					default: "Landscape",
 				},
 			],
-			function (dialog_data) {
+			async function (dialog_data) {
+				// Resolved via a real server call rather than the client-side `locals`
+				// cache (which is only populated for records already loaded elsewhere in
+				// the session, and was silently leaving the letterhead blank when it
+				// wasn't). Falls back to whichever Letter Head is marked as the system
+				// default if this Company has none of its own set.
+				let letter_head_name = letter_head || "";
+				if (!letter_head_name && company) {
+					try {
+						const r = await frappe.db.get_value("Company", company, "default_letter_head");
+						letter_head_name = (r && r.message && r.message.default_letter_head) || "";
+					} catch (e) {
+						letter_head_name = "";
+					}
+				}
+				if (!letter_head_name) {
+					try {
+						const rows = await frappe.db.get_list("Letter Head", {
+							filters: { is_default: 1 },
+							fields: ["name"],
+							limit: 1,
+						});
+						letter_head_name = (rows && rows[0] && rows[0].name) || "";
+					} catch (e) {
+						letter_head_name = "";
+					}
+				}
+
 				let data = $.extend(print_settings, dialog_data, {
 					with_letter_head: 1,
-					letter_head: default_letter_head,
+					// Needed for the letterhead's own footer to render at all - print_template.html
+					// only emits the footer block when this is on.
+					repeat_header_footer: 1,
+					letter_head: letter_head_name,
 				});
 				data.letter_head = data.letter_head
 					? frappe.boot.letter_heads[data.letter_head]
