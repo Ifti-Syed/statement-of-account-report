@@ -26,7 +26,7 @@
 		background-color: #f4f5f6 !important;
 		font-weight: bold;
 	}
-	/* Dates and amounts must stay on one line - tighter side padding gives them room */
+	/* Dates, references and amounts must stay on one line - tighter side padding gives them room */
 	.print-format td.soa-nowrap, .print-format th.soa-nowrap {
 		white-space: nowrap;
 		word-wrap: normal;
@@ -86,7 +86,8 @@
 
 	{% var is_without_project = filters.report_type === "Without Project";
 		var equal_col_width = is_without_project ? 12 : 10;
-		var amount_col_width = is_without_project ? 12.75 : 11;
+		var amount_col_width = is_without_project ? 13.5 : 11.5;
+		var ref_col_width = is_without_project ? 10 : 9;
 		var range_col = function(fieldname) {
 			var col = report.columns.filter((elem) => (elem.fieldname == fieldname))[0];
 			return col ? col.label : fieldname;
@@ -191,12 +192,12 @@
 
 	<table class="table table-bordered">
 		<colgroup>
-			<col style="width: 11%;">
+			<col style="width: 10%;">
 			{% if(!is_without_project) { %}
 				<col style="width: 11%;">
 			{% } %}
 			<col style="width: 5%;">
-			<col style="width: {%= equal_col_width %}%;">
+			<col style="width: {%= ref_col_width %}%;">
 			<col style="width: {%= amount_col_width %}%;">
 			<col style="width: {%= amount_col_width %}%;">
 			<col style="width: {%= equal_col_width %}%;">
@@ -235,7 +236,7 @@
 						<td>{%= data[i]["project"] || "" %}</td>
 					{% } %}
 					<td class="soa-nowrap" style="text-align: right">{%= data[i]["age"] %}</td>
-					<td>{%= data[i]["voucher_no"] %}</td>
+					<td class="soa-nowrap">{%= data[i]["voucher_no"] %}</td>
 
 					<td class="soa-nowrap" style="text-align: right">
 						{%= fmt_acc(data[i]["invoiced"], data[i]["currency"]) %}</td>
