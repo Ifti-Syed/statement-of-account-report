@@ -2,7 +2,9 @@
 	.print-format {
 		margin-left: 3mm;
 		margin-right: 3mm;
-		margin-bottom: 3mm;
+		/* Read by Frappe as the PDF bottom page margin - this is the space the letterhead
+		   footer (repeated on every page via #footer-html) is drawn into. */
+		margin-bottom: 38mm;
 		padding: 2mm 4mm;
 		font-size: 8.0pt !important;
 	}
@@ -23,6 +25,32 @@
 	.cvs-footer, .cvs-footer td, .cvs-footer th {
 		background-color: #f4f5f6 !important;
 		font-weight: bold;
+	}
+	/* Dates and amounts must stay on one line - tighter side padding gives them room */
+	.print-format td.soa-nowrap, .print-format th.soa-nowrap {
+		white-space: nowrap;
+		word-wrap: normal;
+		overflow-wrap: normal;
+		padding-left: 3px !important;
+		padding-right: 3px !important;
+	}
+	/* Portrait has ~30% less width than landscape - a slightly smaller font keeps dates and
+	   amounts (including the bold Total row) on one line there. Landscape is unchanged. */
+	.print-format:not(.landscape) table {
+		font-size: 7.5pt;
+	}
+	/* Frappe only reads the exact ".print-format" rule above for PDF page margins; as a plain
+	   CSS margin that 38mm would also pad the repeating header/footer pages (growing the
+	   header after page 1 and re-flowing rows twice) and push a blank page after the report. */
+	div.print-format {
+		margin-bottom: 0 !important;
+	}
+	/* Letterhead footer, scaled (aspect ratio kept) so it always fits the reserved margin */
+	.letter-head-footer img {
+		max-width: 100%;
+		max-height: 27mm;
+		width: auto;
+		height: auto !important;
 	}
 	</style>
 
@@ -58,6 +86,7 @@
 
 	{% var is_without_project = filters.report_type === "Without Project";
 		var equal_col_width = is_without_project ? 12 : 10;
+		var amount_col_width = is_without_project ? 12.75 : 11;
 		var range_col = function(fieldname) {
 			var col = report.columns.filter((elem) => (elem.fieldname == fieldname))[0];
 			return col ? col.label : fieldname;
@@ -137,17 +166,13 @@
 			{% if(is_without_project) { %}
 				<tr>
 					<td>{%= __("Total Outstanding") %}</td>
-					{% grand_outstanding.forEach(function(v) { %}
-						<td class="text-right">{%= fmt_acc(v, soa_currency) %}</td>
-					{% }); %}
+					<td colspan="5"></td>
 					<td class="text-right">{%= fmt_acc(sum_row(grand_outstanding), soa_currency) %}</td>
 				</tr>
 			{% } else { %}
 				<tr class="cvs-footer">
 					<th class="text-left">{%= __("Total Outstanding") %}</th>
-					{% grand_outstanding.forEach(function(v) { %}
-						<th class="text-right">{%= fmt_acc(v, soa_currency) %}</th>
-					{% }); %}
+					<th colspan="5"></th>
 					<th class="text-right">{%= fmt_acc(sum_row(grand_outstanding), soa_currency) %}</th>
 				</tr>
 			{% } %}
@@ -158,9 +183,7 @@
 			</tr>
 			<tr class="cvs-footer">
 				<th class="text-left">{%= __("Remaining Balance") %}</th>
-				{% grand_remaining.forEach(function(v) { %}
-					<th class="text-right">{%= fmt_acc(v, soa_currency) %}</th>
-				{% }); %}
+				<th colspan="5"></th>
 				<th class="text-right">{%= fmt_acc(sum_row(grand_remaining) - unallocated_pdc, soa_currency) %}</th>
 			</tr>
 		</tbody>
@@ -168,18 +191,18 @@
 
 	<table class="table table-bordered">
 		<colgroup>
-			<col style="width: 10%;">
+			<col style="width: 11%;">
 			{% if(!is_without_project) { %}
-				<col style="width: 12%;">
+				<col style="width: 11%;">
 			{% } %}
-			<col style="width: 6%;">
+			<col style="width: 5%;">
 			<col style="width: {%= equal_col_width %}%;">
+			<col style="width: {%= amount_col_width %}%;">
+			<col style="width: {%= amount_col_width %}%;">
 			<col style="width: {%= equal_col_width %}%;">
-			<col style="width: {%= equal_col_width %}%;">
-			<col style="width: {%= equal_col_width %}%;">
-			<col style="width: 12%;">
-			<col style="width: {%= equal_col_width %}%;">
-			<col style="width: {%= equal_col_width %}%;">
+			<col style="width: 9%;">
+			<col style="width: {%= amount_col_width %}%;">
+			<col style="width: {%= amount_col_width %}%;">
 		</colgroup>
 		<thead>
 			<tr>
@@ -187,7 +210,7 @@
 				{% if(!is_without_project) { %}
 					<th>{%= __("Project") %}</th>
 				{% } %}
-				<th>{%= __("Age (Days)") %}</th>
+				<th class="soa-nowrap" style="white-space: normal;">{%= __("Age (Days)") %}</th>
 				<th>{%= __("Reference") %}</th>
 				<th>{%= __("Invoiced Amount") %}</th>
 				<th>{%= __("Outstanding Amount") %}</th>
@@ -207,23 +230,23 @@
 			{% for(var i=0, l=data.length; i<l; i++) { %}
 				{% if(data[i]["party"]) { %}
 				<tr>
-					<td>{%= frappe.datetime.str_to_user(data[i]["posting_date"]) %}</td>
+					<td class="soa-nowrap">{%= frappe.datetime.str_to_user(data[i]["posting_date"]) %}</td>
 					{% if(!is_without_project) { %}
 						<td>{%= data[i]["project"] || "" %}</td>
 					{% } %}
-					<td style="text-align: right">{%= data[i]["age"] %}</td>
+					<td class="soa-nowrap" style="text-align: right">{%= data[i]["age"] %}</td>
 					<td>{%= data[i]["voucher_no"] %}</td>
 
-					<td style="text-align: right">
+					<td class="soa-nowrap" style="text-align: right">
 						{%= fmt_acc(data[i]["invoiced"], data[i]["currency"]) %}</td>
-					<td style="text-align: right">
+					<td class="soa-nowrap" style="text-align: right">
 						{%= fmt_acc(data[i]["outstanding"], data[i]["currency"]) %}</td>
 
 					<td style="text-align: right">
 						{%= data[i]["po_no"] %}</td>
 					<td style="text-align: right">{%= data[i]["future_ref"] %}</td>
-					<td style="text-align: right">{%= fmt_acc(data[i]["future_amount"], data[i]["currency"]) %}</td>
-					<td style="text-align: right">{%= fmt_acc(data[i]["remaining_balance"], data[i]["currency"]) %}</td>
+					<td class="soa-nowrap" style="text-align: right">{%= fmt_acc(data[i]["future_amount"], data[i]["currency"]) %}</td>
+					<td class="soa-nowrap" style="text-align: right">{%= fmt_acc(data[i]["remaining_balance"], data[i]["currency"]) %}</td>
 				</tr>
 				{% } else { %}
 				<tr class="cvs-footer">
@@ -233,15 +256,15 @@
 					{% } %}
 					<td></td>
 					<td style="text-align: right"><b>{%= __("Total") %}</b></td>
-					<td style="text-align: right">
+					<td class="soa-nowrap" style="text-align: right">
 						<b>{%= fmt_acc(data[i]["invoiced"], data[i]["currency"]) %}</b></td>
-					<td style="text-align: right">
+					<td class="soa-nowrap" style="text-align: right">
 						<b>{%= fmt_acc(data[i]["outstanding"], data[i]["currency"]) %}</b></td>
 
 					<td style="text-align: right"></td>
 					<td style="text-align: right"></td>
-					<td style="text-align: right"><b>{%= fmt_acc(data[i]["future_amount"], data[i]["currency"]) %}</b></td>
-					<td style="text-align: right"><b>{%= fmt_acc(data[i]["remaining_balance"], data[i]["currency"]) %}</b></td>
+					<td class="soa-nowrap" style="text-align: right"><b>{%= fmt_acc(data[i]["future_amount"], data[i]["currency"]) %}</b></td>
+					<td class="soa-nowrap" style="text-align: right"><b>{%= fmt_acc(data[i]["remaining_balance"], data[i]["currency"]) %}</b></td>
 				</tr>
 				{% } %}
 			{% } %}
