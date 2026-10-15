@@ -39,6 +39,34 @@
 	.print-format:not(.landscape) table {
 		font-size: 7.5pt;
 	}
+	/* Detail table column widths. Set per orientation because portrait has ~30% less width
+	   and a smaller font: Date is sized to just fit dd-mm-yyyy, amounts to fit 7-digit totals. */
+	.print-format.landscape .soa-pw col.soa-c-date { width: 7%; }
+	.print-format.landscape .soa-pw col.soa-c-project { width: 18%; }
+	.print-format.landscape .soa-pw col.soa-c-age { width: 5%; }
+	.print-format.landscape .soa-pw col.soa-c-ref { width: 9%; }
+	.print-format.landscape .soa-pw col.soa-c-amt { width: 10%; }
+	.print-format.landscape .soa-pw col.soa-c-lpo { width: 12%; }
+	.print-format.landscape .soa-pw col.soa-c-pdcref { width: 9%; }
+	.print-format.landscape .soa-wp col.soa-c-date { width: 7%; }
+	.print-format.landscape .soa-wp col.soa-c-age { width: 5%; }
+	.print-format.landscape .soa-wp col.soa-c-ref { width: 12%; }
+	.print-format.landscape .soa-wp col.soa-c-amt { width: 11%; }
+	.print-format.landscape .soa-wp col.soa-c-lpo { width: 18%; }
+	.print-format.landscape .soa-wp col.soa-c-pdcref { width: 14%; }
+	.print-format:not(.landscape) .soa-pw col.soa-c-date { width: 9.5%; }
+	.print-format:not(.landscape) .soa-pw col.soa-c-project { width: 11.5%; }
+	.print-format:not(.landscape) .soa-pw col.soa-c-age { width: 5%; }
+	.print-format:not(.landscape) .soa-pw col.soa-c-ref { width: 9%; }
+	.print-format:not(.landscape) .soa-pw col.soa-c-amt { width: 11.5%; }
+	.print-format:not(.landscape) .soa-pw col.soa-c-lpo { width: 10%; }
+	.print-format:not(.landscape) .soa-pw col.soa-c-pdcref { width: 9%; }
+	.print-format:not(.landscape) .soa-wp col.soa-c-date { width: 9.5%; }
+	.print-format:not(.landscape) .soa-wp col.soa-c-age { width: 5%; }
+	.print-format:not(.landscape) .soa-wp col.soa-c-ref { width: 10%; }
+	.print-format:not(.landscape) .soa-wp col.soa-c-amt { width: 13%; }
+	.print-format:not(.landscape) .soa-wp col.soa-c-lpo { width: 14%; }
+	.print-format:not(.landscape) .soa-wp col.soa-c-pdcref { width: 9.5%; }
 	/* Frappe only reads the exact ".print-format" rule above for PDF page margins; as a plain
 	   CSS margin that 38mm would also pad the repeating header/footer pages (growing the
 	   header after page 1 and re-flowing rows twice) and push a blank page after the report. */
@@ -60,9 +88,18 @@
 		{%= frappe.datetime.str_to_user(filters.report_date) %}
 	</h2>
 
+	{% var customer_names = {};
+		var customer_order = [];
+		data.forEach(function(d) {
+			if (!d || !d["party"]) return;
+			if (customer_order.indexOf(d["party"]) === -1) customer_order.push(d["party"]);
+			if (d["customer_name"]) customer_names[d["party"]] = d["customer_name"];
+		});
+		if (!customer_order.length && filters.party) customer_order = [].concat(filters.party);
+	%}
 	<h4 class="text-center">
 		{% if (filters.party) { %}
-			{%= __(filters.party) %}
+			{%= customer_order.map(function(p) { return customer_names[p] || p; }).join(", ") %}
 		{% } %}
 	</h4>
 	<h6 class="text-center">
@@ -85,9 +122,6 @@
 	</div>
 
 	{% var is_without_project = filters.report_type === "Without Project";
-		var equal_col_width = is_without_project ? 12 : 10;
-		var amount_col_width = is_without_project ? 13.5 : 11.5;
-		var ref_col_width = is_without_project ? 10 : 9;
 		var range_col = function(fieldname) {
 			var col = report.columns.filter((elem) => (elem.fieldname == fieldname))[0];
 			return col ? col.label : fieldname;
@@ -190,20 +224,20 @@
 		</tbody>
 	</table>
 
-	<table class="table table-bordered">
+	<table class="table table-bordered {%= is_without_project ? "soa-wp" : "soa-pw" %}">
 		<colgroup>
-			<col style="width: 10%;">
+			<col class="soa-c-date">
 			{% if(!is_without_project) { %}
-				<col style="width: 11%;">
+				<col class="soa-c-project">
 			{% } %}
-			<col style="width: 5%;">
-			<col style="width: {%= ref_col_width %}%;">
-			<col style="width: {%= amount_col_width %}%;">
-			<col style="width: {%= amount_col_width %}%;">
-			<col style="width: {%= equal_col_width %}%;">
-			<col style="width: 9%;">
-			<col style="width: {%= amount_col_width %}%;">
-			<col style="width: {%= amount_col_width %}%;">
+			<col class="soa-c-age">
+			<col class="soa-c-ref">
+			<col class="soa-c-amt">
+			<col class="soa-c-amt">
+			<col class="soa-c-lpo">
+			<col class="soa-c-pdcref">
+			<col class="soa-c-amt">
+			<col class="soa-c-amt">
 		</colgroup>
 		<thead>
 			<tr>
@@ -235,7 +269,7 @@
 					{% if(!is_without_project) { %}
 						<td>{%= data[i]["project"] || "" %}</td>
 					{% } %}
-					<td class="soa-nowrap" style="text-align: right">{%= data[i]["age"] %}</td>
+					<td class="soa-nowrap">{%= data[i]["age"] %}</td>
 					<td class="soa-nowrap">{%= data[i]["voucher_no"] %}</td>
 
 					<td class="soa-nowrap" style="text-align: right">
@@ -243,9 +277,8 @@
 					<td class="soa-nowrap" style="text-align: right">
 						{%= fmt_acc(data[i]["outstanding"], data[i]["currency"]) %}</td>
 
-					<td style="text-align: right">
-						{%= data[i]["po_no"] %}</td>
-					<td style="text-align: right">{%= data[i]["future_ref"] %}</td>
+					<td>{%= data[i]["po_no"] %}</td>
+					<td>{%= data[i]["future_ref"] %}</td>
 					<td class="soa-nowrap" style="text-align: right">{%= fmt_acc(data[i]["future_amount"], data[i]["currency"]) %}</td>
 					<td class="soa-nowrap" style="text-align: right">{%= fmt_acc(data[i]["remaining_balance"], data[i]["currency"]) %}</td>
 				</tr>
